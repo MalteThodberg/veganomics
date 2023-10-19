@@ -1,0 +1,152 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# veganomics
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of veganomics is to provide extra functions for using vegan with -omics data such as RNA-Seq or microarrays, including functions for:
+
+- Filtering, normalizing and scaling expression matrices for use with rda()
+- Improved plotting of variance partioning between constrained/non-constrained components from rda()
+- Improved plotting of study design and sample strain from rda()
+
+Some functions also work for cca()
+
+## Installation
+
+You can install the development version of veganomics from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("MalteThodberg/veganomics")
+```
+
+## Examples using Bioconductor datasets
+
+The following includes some example analysis using various datasets from Bioconductor.
+
+```{r package}
+library(veganomics)
+theme_set(theme_bw())
+```
+
+### RDA on bladderbatch data
+
+```{r bladderbatch}
+# Data
+library(SummarizedExperiment)
+library(bladderbatch)
+data("bladderdata")
+
+# Convert from eSet to SummarizedExperiment and format a bit
+SE <- as(bladderEset, "SummarizedExperiment")
+SE$batch <- factor(SE$batch) |> forcats::fct_infreq()
+SE$cancer <- relevel(SE$cancer, "Normal")
+
+# Normalize
+EM <- t(assay(SE))
+
+# Simple PCA
+fit_pca <- rda(EM, scale=TRUE)
+plotTotal(fit_pca, color=SE$cancer, shape=SE$batch)
+
+# Fit RDA
+fit_rda <- rda(formula=EM~outcome,
+							 data=as.data.frame(colData(SE)), scale=TRUE)
+
+# Visualize decomposition
+plotDecomposition(fit_rda, 
+									color=SE$outcome, 
+									shape=SE$batch,
+									color_scale = scale_color_brewer("Cancer", palette = "Set1"),
+									shape_scale = scale_shape("Batch"))
+
+# Further inspect model
+plotDesign(fit_rda, color=SE$cancer, shape=SE$batch) +
+	scale_color_brewer("Cancer", palette = "Set1") +
+	scale_shape("Batch")
+
+plotStrain(fit_rda, color=SE$cancer, shape=SE$batch) +
+	scale_color_brewer("Cancer", palette = "Set1") +
+	scale_shape("Batch")
+
+# Example of corresponding tests in vegan
+anova(fit_rda, 
+			permutations = how(nperm=99), # SET THIS TOO ATLEAST 999!!!
+			by="term")
+
+anova(fit_rda, 
+			permutations = how(nperm=99), # SET THIS TOO ATLEAST 999!!!
+			by="axis")
+```
+
+### pRDA on parathyroidSE data
+
+```{r parathyroidSE}
+library(parathyroidSE)
+data("parathyroidGenesSE")
+
+# Filter counts using edgeR
+CM <- filterCounts(~treatment*time,
+						 data=colData(parathyroidGenesSE),
+						 y=assay(parathyroidGenesSE))
+
+# Normalize
+EM <- normalizeCounts(CM)
+
+# Simple PCA
+fit_pca <- rda(EM, scale=TRUE)
+plotTotal(fit_pca, color=parathyroidGenesSE$patient)
+
+# RDA
+fit_rda <- rda(formula=EM~treatment*time,
+								data=as.data.frame(colData(parathyroidGenesSE)), scale=TRUE)
+
+# Visualize decomposition
+plotDecomposition(fit_rda, color=parathyroidGenesSE$treatment, shape=parathyroidGenesSE$time,
+									color_scale = scale_color_brewer("Treatment", palette = "Set1"),
+									shape_scale = scale_shape("Time"))
+
+# Highligh batch effect
+plotDecomposition(fit_rda, color=parathyroidGenesSE$patient,
+									color_scale = scale_color_brewer("Patient", palette = "Set2"))
+
+# Fit partial RDA to remove batch effect
+fit_prda <- rda(formula=EM~treatment+time+treatment:time+Condition(patient),
+		data=as.data.frame(colData(parathyroidGenesSE)), scale=TRUE)
+
+# Corrected
+plotDecomposition(fit_prda, color=parathyroidGenesSE$treatment, shape=parathyroidGenesSE$time,
+									color_scale = scale_color_brewer("Treatment", palette = "Set1"),
+									shape_scale = scale_shape("Time"))
+plotDecomposition(fit_prda, color=parathyroidGenesSE$patient,
+									color_scale = scale_color_brewer("Patient", palette = "Set2"))
+
+# Further introspection of pRDA
+plotDesign(fit_prda, color=parathyroidGenesSE$treatment, shape=parathyroidGenesSE$time) +
+	scale_color_brewer("Treatment", palette = "Set1") +
+	scale_shape("Time")
+
+plotStrain(fit_prda, color=parathyroidGenesSE$treatment, shape=parathyroidGenesSE$time) +
+ 	scale_color_brewer("Treatment", palette = "Set1") +
+ 	scale_shape("Time")
+
+# Test significance of terms
+anova(fit_prda, 
+			permutations = how(nperm=99), # SET THIS TOO ATLEAST 999!!!
+			by="term")
+```
