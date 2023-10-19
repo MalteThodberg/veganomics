@@ -1,0 +1,29 @@
+Package: veganomics
+Type: Package
+Title: vegan for -omics data
+Version: 0.1.0
+Author: Malte Thodberg
+Maintainer: Malte Thodberg <malte.thodberg@sund.ku.dk>
+Description: Plotting and utility functions for using vegan with -omics data.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    ggrepel,
+    methods,
+    scales
+Suggests: 
+    airway,
+    bladderbatch,
+    DESeq2,
+    edgeR,
+    fission,
+    golubEsets,
+    limma,
+    parathyroidSE,
+    SummarizedExperiment
+Depends: 
+    ggplot2,
+    patchwork,
+    vegan
+RoxygenNote: 7.2.3
